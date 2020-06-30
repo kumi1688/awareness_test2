@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:battery/battery.dart';
+import 'package:sensors/sensors.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() => runApp(MyApp());
@@ -26,22 +30,42 @@ class _MyHomePageState extends State<MyHomePage> {
   static const MethodChannel _channel =
   const MethodChannel('com.example.flutter_awareness_api_test');
 
-  String _platformVersion = 'Unknown';
+  String _platformVersion = '';
   String _headphoneState = '';
   String _userState = '';
   String _userLocation = '';
   List<String> _userPlaces = [];
+  String _batteryLevel = '';
 
-  Map<String, String> _data = {
-    'platformVersion' : '',
-    'headphoneState'  : '',
-    'userState'       : '',
-    'userLocation'    : '',
-  };
-  
+  List<double> _accelerometerValues;
+  List<double> _userAccelerometerValues;
+  List<double> _gyroscopeValues;
+  List<StreamSubscription<dynamic>> _streamSubscriptions =
+  <StreamSubscription<dynamic>>[];
+
   @override
   void initState(){
     super.initState();
+    _streamSubscriptions
+        .add(accelerometerEvents.listen((AccelerometerEvent event) {
+      setState(() {
+        _accelerometerValues = <double>[event.x, event.y, event.z];
+      });
+    }));
+    _streamSubscriptions.add(gyroscopeEvents.listen((GyroscopeEvent event) {
+      setState(() {
+        _gyroscopeValues = <double>[event.x, event.y, event.z];
+      });
+    }));
+    _streamSubscriptions
+        .add(userAccelerometerEvents.listen((UserAccelerometerEvent event) {
+      setState(() {
+        _userAccelerometerValues = <double>[event.x, event.y, event.z];
+      });
+    }));
+
+
+
     _checkPermission();
   }
 
@@ -70,8 +94,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<List<String>> getUserPlace() async {
-    List<String> result = await _channel.invokeMethod('getUserPlace');
+    var result = await _channel.invokeMethod('getUserPlace');
     return result;
+  }
+
+  Future<int> getBattery() async {
+    var battery = Battery();
+    int batteryLevel = await battery.batteryLevel;
+    return batteryLevel;
   }
 
   Widget _buildUserPlaces(){
@@ -86,6 +116,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final List<String> accelerometer =
+    _accelerometerValues?.map((double v) => v.toStringAsFixed(1))?.toList();
+    final List<String> gyroscope =
+    _gyroscopeValues?.map((double v) => v.toStringAsFixed(1))?.toList();
+    final List<String> userAccelerometer = _userAccelerometerValues
+        ?.map((double v) => v.toStringAsFixed(1))
+        ?.toList();
+
     return Scaffold(
       appBar: AppBar(
         title: Text("Method Channel Test"),
@@ -134,9 +172,17 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Text("사용자 장소 확인"),
               onPressed: () async {
                 List<String> result = await getUserPlace();
-                print(result);
                 setState(() {
                   _userPlaces = result;
+                });
+              },
+            ),
+            RaisedButton(
+              child: Text("배터리 잔량 확인"),
+              onPressed: () async {
+                int result = await getBattery();
+                setState(() {
+                  _batteryLevel ="배터리 잔량 $result%";
                 });
               },
             ),
@@ -144,6 +190,10 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(_headphoneState),
             Text(_userState),
             Text(_userLocation),
+            Text("배터리: " + _batteryLevel),
+            Text('Accelerometer: $accelerometer'),
+            Text('UserAccelerometer: $userAccelerometer'),
+            Text('Gyroscope: $gyroscope'),
           ],
         ),
       ),

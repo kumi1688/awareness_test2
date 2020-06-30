@@ -179,10 +179,11 @@ public class MainActivity extends FlutterActivity {
 
                         List<String> places = new ArrayList<String>();
                         for (PlaceLikelihood placeLikelihood : findCurrentPlaceResponse.getPlaceLikelihoods()) {
-                            String userPlace = "";
+                             String userPlace = "";
                              userPlace += placeLikelihood.getPlace().getName() + ", ";
-                             userPlace += placeLikelihood.getLikelihood();
+                             userPlace += placeLikelihood.getLikelihood() * 1000 + "%";
                              places.add(userPlace);
+                            System.out.println(userPlace);
                         }
                         result.success(places);
                     }
